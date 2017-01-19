@@ -28,7 +28,7 @@ EOF
     echo $A
 }
 
-PLATFORM_CHOICES=(unclear astar octopus tulip azalea)
+PLATFORM_CHOICES=(nuclear astar octopus tulip azalea)
 # check to see if the supplied product is one we can build
 function check_platform()
 {
@@ -241,6 +241,41 @@ function lunch()
     printconfig
 }
 
+# Build brandy(uboot,boot0,fes) if you want.
+function mboot()
+{
+	local T=$(gettop)
+	local chip=
+	echo $TARGET_PRODUCT $TARGET_PLATFORM $TARGET_BOARD
+	if [ -z "$TARGET_BOARD" -o -z "$TARGET_PLATFORM" ]; then
+		echo "Please use lunch to select a target board before build boot."
+		return
+	fi
+
+	if [ "x$TARGET_PLATFORM" = "xunclear" ]; then
+		chip=sun5i
+	elif [ "x$TARGET_PLATFORM" = "xastar" ]; then
+		chip=sun8iw5p1
+	elif [ "x$TARGET_PLATFORM" = "xazalea" ]; then
+		chip=sun8iw11p1
+	elif [ "x$TARGET_PLATFORM" = "xoctopus" ]; then
+		chip=sun8iw6p1
+	elif [ "x$TARGET_PLATFORM" = "xtulip" ]; then
+		chip=sun50iw1p1
+	else
+		echo "platform($TARGET_PLATFORM) not support"
+		return
+	fi
+
+	cd $T/lichee/brandy/
+	./build.sh -p $chip
+	if [ $? -ne 0 ]; then
+		echo "mboot stop for build error in brandy, Please check!"
+		return
+	fi
+	cd - 1>/dev/null
+	echo "mboot success!"
+}
 # Tab completion for lunch.
 function _lunch()
 {
@@ -286,15 +321,104 @@ function mm() {
 	$T/scripts/mm.sh $T $*
 }
 
-function make_ota_image(){
+function mlibc() {
 	local T=$(gettop)
-	printf "build ota package\n"
-	[ -e $T/package/utils/otabuilder/Makefile ] &&
-		make -j
-		make package/utils/otabuilder/clean -j
-		make package/utils/otabuilder/install -j
-		print_red bin/sunxi/ota_md5.tar.gz
-	printf "build ota package end\n"
+	$T/scripts/mlibc.sh $T $*
+}
+
+# function make_ota_image(){
+# 	local T=$(gettop)
+# 	printf "build ota package\n"
+# 	[ -e $T/package/utils/otabuilder/Makefile ] &&
+# 		make -j
+# 		make package/utils/otabuilder/clean -j
+# 		make package/utils/otabuilder/install -j
+# 		print_red bin/sunxi/ota_md5.tar.gz
+# 	printf "build ota package end\n"
+# }
+function make_img_md5(){
+    #$1: target image
+    md5sum $1 | awk '{print $1}' > $1.md5
+}
+function print_red(){
+    echo -e '\033[0;31;1m'
+    echo $1
+    echo -e '\033[0m'
+}
+function make_ota_image(){
+    local T=$(gettop)
+    local chip=sunxi
+    local need_usr=0
+    [ x$CHIP = x"sun5i" ] && chip=sun5i
+    local BIN_DIR=$T/out/${TARGET_BOARD}
+    local OTA_DIR=$BIN_DIR/ota
+    mkdir -p $OTA_DIR
+    print_red "build ota package"
+    grep "CONFIG_SUNXI_SMALL_STORAGE_OTA=y" $T/.config && need_usr=1
+    #target image
+    target_list="$BIN_DIR/boot.img $BIN_DIR/rootfs.img $BIN_DIR/usr.img"
+    if [ $need_usr -eq 0 ];then
+        target_list="$BIN_DIR/boot.img $BIN_DIR/rootfs.img"
+    fi
+    [ -n $1 ] && [ x$1 = x"--force" ] && rm -rf $target_list
+    for i in $target_list; do
+        if [ ! -f $i ]; then
+            img=${i##*/}
+            print_red "$i is not exsit! rebuild the image."
+            make -j16
+            break
+        fi
+    done
+
+    rm -rf $OTA_DIR/target_sys
+    mkdir -p $OTA_DIR/target_sys
+    cp $BIN_DIR/boot.img $OTA_DIR/target_sys/
+    make_img_md5 $OTA_DIR/target_sys/boot.img
+
+    cp $BIN_DIR/rootfs.img $OTA_DIR/target_sys/
+    make_img_md5 $OTA_DIR/target_sys/rootfs.img
+    if [ $need_usr -eq 1 ];then
+        cp $BIN_DIR/usr.img $OTA_DIR/target_sys/
+        make_img_md5 $OTA_DIR/target_sys/usr.img
+        rm -rf $OTA_DIR/usr_sys
+        mkdir -p $OTA_DIR/usr_sys
+        cp $BIN_DIR/usr.img $OTA_DIR/usr_sys/
+        make_img_md5 $OTA_DIR/usr_sys/usr.img
+    fi
+    #upgrade image
+    cp $T/.config $OTA_DIR/.config.old
+
+    grep -v -e CONFIG_TARGET_ROOTFS_INITRAMFS  $OTA_DIR/.config.old > .config
+    echo 'CONFIG_TARGET_ROOTFS_INITRAMFS=y' >> .config
+	echo 'CONFIG_TARGET_AW_OTA_INITRAMFS=y' >> .config
+	echo 'CONFIG_TARGET_INITRAMFS_COMPRESSION_XZ=y' >> .config
+	cp .config $T/target/allwinner/${TARGET_BOARD}/defconfig
+    #refresh_ota_env
+    make V=s -j16
+
+	cp $OTA_DIR/.config.old $T/.config
+    cp $OTA_DIR/.config.old $T/target/allwinner/${TARGET_BOARD}/defconfig
+
+    rm -rf $OTA_DIR/ramdisk_sys
+    mkdir -p $OTA_DIR/ramdisk_sys
+
+    cp $BIN_DIR/boot_initramfs.img $OTA_DIR/ramdisk_sys/
+    make_img_md5 $OTA_DIR/ramdisk_sys/boot_initramfs.img
+
+    if [ $need_usr -eq 1 ];then
+        cd $OTA_DIR && \
+            tar -zcvf target_sys.tar.gz target_sys && \
+            tar -zcvf ramdisk_sys.tar.gz ramdisk_sys && \
+            tar -zcvf usr_sys.tar.gz usr_sys && \
+            cd $T
+    else
+        cd $OTA_DIR && \
+            tar -zcvf target_sys.tar.gz target_sys && \
+            tar -zcvf ramdisk_sys.tar.gz ramdisk_sys && \
+            cd $T
+    fi
+    #refresh_ota_env
+    print_red "build ota packag finish!"
 }
 
 usage()

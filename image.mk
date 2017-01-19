@@ -10,6 +10,7 @@ include $(BUILD_DIR)/prereq.mk
 include $(BUILD_DIR)/kernel.mk
 include $(BUILD_DIR)/host.mk
 include $(BUILD_DIR)/version.mk
+include $(BUILD_DIR)/aw-upgrade.mk
 
 override MAKE:=$(_SINGLE)$(SUBMAKE)
 override NO_TRACE_MAKE:=$(_SINGLE)$(NO_TRACE_MAKE)
@@ -172,8 +173,17 @@ endef
 $(eval $(foreach S,$(JFFS2_BLOCKSIZE),$(call Image/mkfs/jffs2/template,$(S))))
 $(eval $(foreach S,$(NAND_BLOCKSIZE),$(call Image/mkfs/jffs2-nand/template,$(S))))
 
+
 define Image/mkfs/squashfs
-	$(STAGING_DIR_HOST)/bin/mksquashfs4 $(TARGET_DIR) $(KDIR)/root.squashfs -nopad -noappend -root-owned -comp xz $(SQUASHFSOPT) -processors $(if $(CONFIG_PKG_BUILD_JOBS),$(CONFIG_PKG_BUILD_JOBS),1) $(if $(SOURCE_DATE_EPOCH),-fixed-time $(SOURCE_DATE_EPOCH))
+	@mkdir -p $(TARGET_DIR)/overlay
+ifneq ($(CONFIG_SUNXI_SMALL_STORAGE_OTA),)
+	$(call Aw/BuildUpgradeImage/normal-prepare,$(TARGET_DIR),./temp_usr)
+	$(STAGING_DIR_HOST)/bin/mksquashfs4 ./temp_usr $(KDIR)/usr.squashfs -noappend -root-owned -comp xz $(SQUASHFSOPT) -processors $(if $(CONFIG_PKG_BUILD_JOBS),$(CONFIG_PKG_BUILD_JOBS),1) $(if $(SOURCE_DATE_EPOCH),-fixed-time $(SOURCE_DATE_EPOCH))
+endif
+	$(STAGING_DIR_HOST)/bin/mksquashfs4 $(TARGET_DIR) $(KDIR)/root.squashfs -noappend -root-owned -comp xz $(SQUASHFSOPT) -processors $(if $(CONFIG_PKG_BUILD_JOBS),$(CONFIG_PKG_BUILD_JOBS),1) $(if $(SOURCE_DATE_EPOCH),-fixed-time $(SOURCE_DATE_EPOCH))
+ifneq ($(CONFIG_SUNXI_SMALL_STORAGE_OTA),)
+	$(call Aw/BuildUpgradeImage/normal-resume,$(TARGET_DIR),./temp_usr)
+endif
 endef
 
 # $(1): board name

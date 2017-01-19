@@ -4,6 +4,7 @@
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
 #
+include $(BUILD_DIR)/aw-upgrade.mk
 
 KERNEL_MAKEOPTS := -C $(LINUX_DIR) \
 	HOSTCFLAGS="$(HOST_CFLAGS) -Wall -Wmissing-prototypes -Wstrict-prototypes" \
@@ -139,7 +140,13 @@ define Kernel/CompileImage/Initramfs
 	$(call Kernel/Configure/Initramfs)
 	$(CP) $(GENERIC_PLATFORM_DIR)/base-files/init $(TARGET_DIR)/init
 	rm -rf $(KERNEL_BUILD_DIR)/linux-$(LINUX_VERSION)/usr/initramfs_data.cpio*
+ifneq ($(CONFIG_SUNXI_SMALL_STORAGE_OTA),)
+	$(call Aw/BuildUpgradeImage/normal-prepare,$(TARGET_DIR),./temp_usr)
+endif
 	+$(MAKE) $(KERNEL_MAKEOPTS) $(if $(KERNELNAME),$(KERNELNAME),all) modules
+ifneq ($(CONFIG_SUNXI_SMALL_STORAGE_OTA),)
+	$(call Aw/BuildUpgradeImage/normal-resume,$(TARGET_DIR),./temp_usr)
+endif
 	$(call Kernel/CopyImage,-initramfs)
 endef
 else
