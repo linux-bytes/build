@@ -16,7 +16,7 @@
 #     BUILD_NUMBER
 
 ifeq "" "$(PLATFORM_VERSION)"
-  PLATFORM_VERSION := 2.0.0
+  PLATFORM_VERSION := 2.1.2
 endif
 
 ifeq "" "$(PLATFORM_VERSION_CODENAME)"
@@ -24,7 +24,7 @@ ifeq "" "$(PLATFORM_VERSION_CODENAME)"
 endif
 
 ifeq "" "$(BUILD_ID)"
-  BUILD_ID=57513AA3
+  BUILD_ID := 593A1793
 endif
 
 ifeq "" "$(TARGET_VERSION_DIST)"
@@ -40,7 +40,11 @@ ifeq "" "$(TARGET_VERSION_MANUFACTURER_URL)"
 endif
 
 ifeq "" "$(TARGET_VERSION_REPO)"
-TARGET_VERSION_REPO := http://github.com/pd2-linux
+  TARGET_VERSION_REPO := http://github.com/tinalinux
+endif
+
+ifeq "" "$(TARGET_VERSION_PRODUCT)"
+  TARGET_VERSION_PRODUCT := $(PLATFORM_VERSION)
 endif
 
 qstrip_escape=$(subst ','\'',$(call qstrip,$(1)))
@@ -56,9 +60,7 @@ VERSION_MANUFACTURER:=$(call qstrip_escape,$(TARGET_VERSION_MANUFACTURER))
 
 VERSION_MANUFACTURER_URL:=$(call qstrip_escape,$(TARGET_VERSION_MANUFACTURER_URL))
 
-
 VERSION_PRODUCT:=$(call qstrip_escape,$(TARGET_VERSION_PRODUCT))
-VERSION_PRODUCT:=$(if $(VERSION_PRODUCT),$(VERSION_PRODUCT),Generic)
 
 VERSION_HWREV:=$(call qstrip_escape,$(TARGET_VERSION_HWREV))
 VERSION_HWREV:=$(if $(VERSION_HWREV),$(VERSION_HWREV),V_0_0)

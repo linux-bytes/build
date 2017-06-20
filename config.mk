@@ -1,6 +1,3 @@
-# Set up version information
-include $(BUILD_SYSTEM)/version.mk
-
 # ---------------------------------------------------------------
 # Set up configuration for host machine.  We don't do cross-
 # compiles except for arm/mips, so the HOST is whatever we are
@@ -73,6 +70,10 @@ ifneq ($(words $(board_config_mk)),1)
   $(error Multiple board config files for TARGET_PRODUCT $(TARGET_PRODUCT): $(board_config_mk))
 endif
 include $(board_config_mk)
+
+# Set up version information
+include $(BUILD_SYSTEM)/version.mk
+
 ifeq ($(TARGET_ARCH),)
   $(error TARGET_ARCH not defined by board config: $(board_config_mk))
 endif
@@ -98,6 +99,10 @@ endif
 
 ifeq ($(PRINT_BUILD_CONFIG),)
 PRINT_BUILD_CONFIG := true
+endif
+
+ifeq ($(OUT_DIR),)
+OUT_DIR := out/$(TARGET_BOARD)
 endif
 
 include $(BUILD_SYSTEM)/dumpvar.mk

@@ -95,31 +95,29 @@ ifdef CONFIG_MIPS64_ABI
 endif
 
 DL_DIR:=$(TOPDIR)/dl
+OUT_DIR:=$(TOPDIR)/out
 TARGET_OUT_DIR:=$(TOPDIR)/out/$(BOARD)
 BUILD_DIR:=$(TOPDIR)/build
 SCRIPT_DIR:=$(TOPDIR)/scripts
 COMPILE_DIR_BASE:=$(TARGET_OUT_DIR)/compile_dir
 
 ifeq ($(CONFIG_UPDATE_TOOLCHAIN), )
-  CONFIG_EXTERNAL_TOOLCHAIN:=y
-  CONFIG_GDB=
   CONFIG_TARGET_NAME=$(ARCH)-openwrt-linux
   ifeq ($(ARCH), arm)
-    CONFIG_TOOLCHAIN_PREFIX=$(ARCH)-openwrt-linux-muslgnueabi-
+    CONFIG_TOOLCHAIN_PREFIX=$(ARCH)-openwrt-linux-$(TARGET_SUFFIX)-
   else
-    CONFIG_TOOLCHAIN_PREFIX=$(ARCH)-openwrt-linux-musl-
+    CONFIG_TOOLCHAIN_PREFIX=$(ARCH)-openwrt-linux-$(TARGET_SUFFIX)-
   endif
-  CONFIG_TOOLCHAIN_ROOT=$(TOPDIR)/prebuilt/gcc/linux-x86/$(ARCH)/toolchain-sunxi/toolchain
-  CONFIG_TOOLCHAIN_LIBC="musl"
-  GCC_VERSION=5.2.0
-  LIBC_VERSION=1.1.14
+  ifeq ($(TARGET_CPU_VARIANT),arm926ej-s)
+    CONFIG_TOOLCHAIN_ROOT=$(TOPDIR)/prebuilt/gcc/linux-x86/$(ARCH)/toolchain-sunxi-arm9-$(CONFIG_TOOLCHAIN_LIBC)/toolchain
+  else
+    CONFIG_TOOLCHAIN_ROOT=$(TOPDIR)/prebuilt/gcc/linux-x86/$(ARCH)/toolchain-sunxi-$(CONFIG_TOOLCHAIN_LIBC)/toolchain
+  endif
   CONFIG_TOOLCHAIN_BIN_PATH="./usr/bin ./bin"
-  CONFIG_TOOLCHAIN_INC_PATH="./usr/include ./include ./include/fortify"
   CONFIG_TOOLCHAIN_LIB_PATH="./usr/lib ./lib"
   CONFIG_LIBATOMIC_ROOT_DIR=$(CONFIG_TOOLCHAIN_ROOT)
   CONFIG_LIBATOMIC_FILE_SPEC="./lib/libatomic.so.*"
   CONFIG_LIBC_ROOT_DIR=$(CONFIG_TOOLCHAIN_ROOT)
-  CONFIG_LIBC_FILE_SPEC="./lib/ld-musl-*.so* ./lib/lib{anl,c,cidn,crypt,dl,m,nsl,nss_dns,nss_files,resolv,util}{-*.so,.so*}"
   CONFIG_LIBGCC_ROOT_DIR=$(CONFIG_TOOLCHAIN_ROOT)
   CONFIG_LIBGCC_FILE_SPEC="./lib/libgcc_s.so.*"
   CONFIG_LIBPTHREAD_ROOT_DIR=$(CONFIG_TOOLCHAIN_ROOT)
@@ -130,6 +128,13 @@ ifeq ($(CONFIG_UPDATE_TOOLCHAIN), )
   CONFIG_LIBSSP_FILE_SPEC="./lib/libssp.so.*"
   CONFIG_LIBSTDCPP_ROOT_DIR=$(CONFIG_TOOLCHAIN_ROOT)
   CONFIG_LIBSTDCPP_FILE_SPEC="./lib/libstdc++.so.*"
+  ifeq ($(CONFIG_TOOLCHAIN_LIBC), "musl")
+    CONFIG_TOOLCHAIN_INC_PATH="./usr/include ./include ./include/fortify"
+    CONFIG_LIBC_FILE_SPEC="./lib/ld-musl-*.so* ./lib/lib{anl,c,cidn,crypt,dl,m,nsl,nss_dns,nss_files,resolv,util}{-*.so,.so*}"
+  else ifeq ($(CONFIG_TOOLCHAIN_LIBC), "glibc")
+    CONFIG_TOOLCHAIN_INC_PATH="./usr/include ./include"
+    CONFIG_LIBC_FILE_SPEC="./lib/ld-{*.so,-linux*.so.*} ./lib/lib{anl,c,cidn,crypt,dl,m,nsl,nss_dns,nss_files,resolv,util}{-*.so,.so*}"
+  endif
 else
   CONFIG_MAKE_TOOLCHAIN:=y
   CONFIG_TOOLCHAIN_ROOT=$(TOPDIR)/prebuilt/gcc/linux-x86/$(ARCH)
@@ -142,7 +147,6 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
   REAL_GNU_TARGET_NAME=$(OPTIMIZE_FOR_CPU)-openwrt-linux$(if $(TARGET_SUFFIX),-$(TARGET_SUFFIX))
   GNU_TARGET_NAME=$(OPTIMIZE_FOR_CPU)-openwrt-linux
   DIR_SUFFIX:=_$(LIBC)-$(LIBCV)$(if $(CONFIG_arm),_eabi)
-  TARGET_OUT_DIR:=$(TARGET_OUT_DIR)$(if $(CONFIG_USE_MUSL),,-$(LIBC))
   TARGET_DIR_NAME = target
   TOOLCHAIN_DIR_NAME = toolchain
 else
@@ -229,6 +233,7 @@ ifndef DUMP
       ifneq ($(TOOLCHAIN_LIB_DIRS),)
         TARGET_LDFLAGS+= $(patsubst %,-L%,$(TOOLCHAIN_LIB_DIRS))
       endif
+      TARGET_CXXFLAGS+=-Wno-virtual-dtor
       TARGET_PATH:=$(TOOLCHAIN_DIR)/bin:$(TARGET_PATH)
     endif
   endif

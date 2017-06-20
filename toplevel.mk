@@ -16,7 +16,7 @@ include $(TOPDIR)/build/verbose.mk
 ifeq ($(SDK),1)
   include $(TOPDIR)/build/version.mk
 else
-  REVISION:=$(shell $(TOPDIR)/scripts/getver.sh)
+  REVISION:=$(shell $(TOPDIR)/scripts/getver.sh -id)
 endif
 
 HOSTCC ?= $(CC)

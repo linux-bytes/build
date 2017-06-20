@@ -28,7 +28,7 @@ EOF
     echo $A
 }
 
-PLATFORM_CHOICES=(nuclear astar octopus tulip azalea)
+PLATFORM_CHOICES=(nuclear astar octopus tulip azalea sitar cello banjo)
 # check to see if the supplied product is one we can build
 function check_platform()
 {
@@ -386,9 +386,9 @@ function make_ota_image(){
         make_img_md5 $OTA_DIR/usr_sys/usr.img
     fi
     #upgrade image
-    cp $T/.config $OTA_DIR/.config.old
+    mv $T/.config $OTA_DIR/.config.old
 
-    grep -v -e CONFIG_TARGET_ROOTFS_INITRAMFS  $OTA_DIR/.config.old > .config
+    grep -v -e CONFIG_TARGET_ROOTFS_INITRAMFS  $T/target/allwinner/${TARGET_BOARD}/defconfig_ota > .config
     echo 'CONFIG_TARGET_ROOTFS_INITRAMFS=y' >> .config
 	echo 'CONFIG_TARGET_AW_OTA_INITRAMFS=y' >> .config
 	echo 'CONFIG_TARGET_INITRAMFS_COMPRESSION_XZ=y' >> .config
@@ -450,17 +450,17 @@ function pack() {
 				debug=card0
 				;;
 			s)
-				sigmode=sig
+				sigmode=secure
 				;;
 			v)
 				securemode=secure
 				;;
 			h)
 				usage
-				exit 0
+				return 0
 				;;
 			?)
-			exit 1
+			return 1
 			;;
 		esac
 	done
@@ -475,12 +475,25 @@ function pack() {
 		chip=sun8iw6p1
 	elif [ "x$board_platform" = "xtulip" ]; then
 		chip=sun50iw1p1
+	elif [ "x$board_platform" = "xsitar" ]; then
+		chip=sun3iw1p1
+	elif [ "x$board_platform" = "xcello" ]; then
+		chip=sun8iw10p1
+	elif [ "x$board_platform" = "xbanjo" ]; then
+		chip=sun8iw8p1
 	else
 		echo "platform($board_platform) not support"
 		return
 	fi
 
-	$T/scripts/pack_img.sh -c $chip -p $platform -b $board -d $debug -s $sigmode -s $securemode -t $T
+	$T/scripts/pack_img.sh -c $chip -p $platform -b $board -d $debug -s $sigmode -v $securemode -t $T
+}
+
+function createkeys()
+{
+	local T=$(gettop)
+	local board=$(get_build_var TARGET_BOARD)
+	$T/scripts/createkeys -b $board -t $T
 }
 
 function minstall()
@@ -509,7 +522,7 @@ function cboot()
 {
     T=$(gettop)
     U=u-boot-2011.09
-    if [ "$TARGET_PLATFORM" = "tulip" -o "$TARGET_PLATFORM" = "azalea" ]; then
+    if [ "$TARGET_PLATFORM" = "tulip" -o "$TARGET_PLATFORM" = "azalea" -o "$TARGET_PLATFORM" = "sitar" -o "$TARGET_PLATFORM" = "cello" ]; then
 	    U=u-boot-2014.07
     fi
     if [ "$T" ]; then
@@ -523,7 +536,7 @@ function ckernel()
 {
     T=$(gettop)
     K=linux-3.4
-    if [ "$TARGET_PLATFORM" = "tulip" -o "$TARGET_PLATFORM" = "azalea" ]; then
+    if [ "$TARGET_PLATFORM" = "tulip" -o "$TARGET_PLATFORM" = "azalea" -o "$TARGET_PLATFORM" = "sitar" -o "$TARGET_PLATFORM" = "cello" ]; then
 	    K=linux-3.10
     fi
     if [ "$T" ]; then

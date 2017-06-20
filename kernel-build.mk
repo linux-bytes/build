@@ -124,7 +124,7 @@ define BuildKernel
   download: $(if $(LINUX_SITE),$(DL_DIR)/$(LINUX_SOURCE))
   prepare: $(STAMP_CONFIGURED)
   compile: $(LINUX_DIR)/.modules
-	$(MAKE) -C ../generic/image compile TARGET_BUILD=
+	+$(MAKE) -C ../generic/image compile TARGET_BUILD=
 
   oldconfig menuconfig nconfig: $(STAMP_PREPARED) $(STAMP_CHECKED) FORCE
 	rm -f $(LINUX_DIR)/.config.prev
